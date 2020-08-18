@@ -28,6 +28,8 @@ import io.seata.rm.datasource.sql.struct.TableRecords;
 import io.seata.sqlparser.SQLRecognizer;
 import io.seata.sqlparser.SQLUpdateRecognizer;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -45,7 +47,7 @@ import java.util.StringJoiner;
  * @author sharajava
  */
 public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecutor<T, S> {
-
+    private static final Logger log = LoggerFactory.getLogger(UpdateExecutor.class);
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
     private static final boolean ONLY_CARE_UPDATE_COLUMNS = CONFIG.getBoolean(
@@ -68,12 +70,13 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         ArrayList<List<Object>> paramAppenderList = new ArrayList<>();
         TableMeta tmeta = getTableMeta();
         String selectSQL = buildBeforeImageSQL(tmeta, paramAppenderList);
+        log.info("before image sql: {}",selectSQL);
         return buildTableRecords(tmeta, selectSQL, paramAppenderList);
     }
 
     private String buildBeforeImageSQL(TableMeta tableMeta, ArrayList<List<Object>> paramAppenderList) {
         SQLUpdateRecognizer recognizer = (SQLUpdateRecognizer) sqlRecognizer;
-        StringBuilder prefix = new StringBuilder("SELECT ");
+        StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         StringBuilder suffix = new StringBuilder(" FROM ").append(getFromTableInSQL());
         String whereCondition = buildWhereCondition(recognizer, paramAppenderList);
         if (StringUtils.isNotBlank(whereCondition)) {
@@ -104,6 +107,7 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
             return TableRecords.empty(getTableMeta());
         }
         String selectSQL = buildAfterImageSQL(tmeta, beforeImage);
+        log.info("after image sql: {}", selectSQL);
         ResultSet rs = null;
         try (PreparedStatement pst = statementProxy.getConnection().prepareStatement(selectSQL)) {
             SqlGenerateUtils.setParamForPk(beforeImage.pkRows(), getTableMeta().getPrimaryKeyOnlyName(), pst);
@@ -115,7 +119,7 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
     }
 
     private String buildAfterImageSQL(TableMeta tableMeta, TableRecords beforeImage) throws SQLException {
-        StringBuilder prefix = new StringBuilder("SELECT ");
+        StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         String whereSql = SqlGenerateUtils.buildWhereConditionByPKs(tableMeta.getPrimaryKeyOnlyName(), beforeImage.pkRows().size(), getDbType());
         String suffix = " FROM " + getFromTableInSQL() + " WHERE " + whereSql;
         StringJoiner selectSQLJoiner = new StringJoiner(", ", prefix.toString(), suffix);

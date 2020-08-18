@@ -229,7 +229,9 @@ public class TableRecords {
                     if (object != null) {
                         field.setValue(new SerialJavaObject(object));
                     }
-                } else {
+                } else if (col.getDataType() == JDBCType.TIMESTAMP.getVendorTypeNumber()) {
+                    field.setValue(resultSet.getTimestamp(i));
+                }  else {
                     // JDBCType.DISTINCT, JDBCType.STRUCT etc...
                     field.setValue(resultSet.getObject(i));
                 }

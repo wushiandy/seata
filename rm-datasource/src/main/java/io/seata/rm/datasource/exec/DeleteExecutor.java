@@ -67,7 +67,7 @@ public class DeleteExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
             suffix.append(" WHERE ").append(whereCondition);
         }
         suffix.append(" FOR UPDATE");
-        StringJoiner selectSQLAppender = new StringJoiner(", ", "SELECT ", suffix.toString());
+        StringJoiner selectSQLAppender = new StringJoiner(", ", "/*#mycat:db_type=master*/ SELECT ", suffix.toString());
         for (String column : tableMeta.getAllColumns().keySet()) {
             selectSQLAppender.add(getColumnNameInSQL(ColumnUtils.addEscape(column, getDbType())));
         }

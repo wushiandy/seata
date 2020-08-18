@@ -130,7 +130,7 @@ public class MySQLInsertExecutor extends BaseInsertExecutor implements Defaultab
             // Statement.executeUpdate() or Connection.prepareStatement().
             if (ERR_SQL_STATE.equalsIgnoreCase(e.getSQLState())) {
                 LOGGER.warn("Fail to get auto-generated keys, use 'SELECT LAST_INSERT_ID()' instead. Be cautious, statement could be polluted. Recommend you set the statement to return generated keys.");
-                genKeys = statementProxy.getTargetStatement().executeQuery("SELECT LAST_INSERT_ID()");
+                genKeys = statementProxy.getTargetStatement().executeQuery("/*#mycat:db_type=master*/ SELECT LAST_INSERT_ID()");
             } else {
                 throw e;
             }

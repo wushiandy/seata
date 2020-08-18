@@ -135,7 +135,7 @@ public class SelectForUpdateExecutor<T, S extends Statement> extends BaseTransac
 
     private String buildSelectSQL(ArrayList<List<Object>> paramAppenderList) {
         SQLSelectRecognizer recognizer = (SQLSelectRecognizer)sqlRecognizer;
-        StringBuilder selectSQLAppender = new StringBuilder("SELECT ");
+        StringBuilder selectSQLAppender = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         selectSQLAppender.append(getColumnNamesInSQL(getTableMeta().getEscapePkNameList(getDbType())));
         selectSQLAppender.append(" FROM ").append(getFromTableInSQL());
         String whereCondition = buildWhereCondition(recognizer, paramAppenderList);

@@ -38,6 +38,8 @@ import io.seata.rm.datasource.sql.struct.TableMeta;
 import io.seata.rm.datasource.sql.struct.TableRecords;
 import io.seata.sqlparser.SQLRecognizer;
 import io.seata.sqlparser.SQLUpdateRecognizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The type MultiSql executor.
@@ -47,6 +49,7 @@ import io.seata.sqlparser.SQLUpdateRecognizer;
  * @author wangwei-ying
  */
 public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecutor<T, S> {
+    private static final Logger log = LoggerFactory.getLogger(MultiUpdateExecutor.class);
 
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
@@ -94,7 +97,7 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
                 whereCondition.append(whereConditionStr);
             }
         }
-        StringBuilder prefix = new StringBuilder("SELECT ");
+        StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         final StringBuilder suffix = new StringBuilder(" FROM ").append(getFromTableInSQL());
         if (noWhereCondition) {
             //select all rows
@@ -130,6 +133,7 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
         }
         TableMeta tmeta = getTableMeta(sqlRecognizers.get(0).getTableName());
         String selectSQL = buildAfterImageSQL(tmeta, beforeImage);
+        log.info("after image sql: {}", selectSQL);
         ResultSet rs = null;
         try (PreparedStatement pst = statementProxy.getConnection().prepareStatement(selectSQL);) {
             SqlGenerateUtils.setParamForPk(beforeImage.pkRows(),getTableMeta().getPrimaryKeyOnlyName(),pst);
@@ -148,7 +152,7 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
             SQLUpdateRecognizer sqlUpdateRecognizer = (SQLUpdateRecognizer) sqlRecognizer;
             updateColumnsSet.addAll(sqlUpdateRecognizer.getUpdateColumns());
         }
-        StringBuilder prefix = new StringBuilder("SELECT ");
+        StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         String suffix = " FROM " + getFromTableInSQL() + " WHERE " + SqlGenerateUtils.buildWhereConditionByPKs(tableMeta.getPrimaryKeyOnlyName(),beforeImage.pkRows().size(),getDbType());
         StringJoiner selectSQLJoiner = new StringJoiner(", ", prefix.toString(), suffix);
         if (ONLY_CARE_UPDATE_COLUMNS) {
