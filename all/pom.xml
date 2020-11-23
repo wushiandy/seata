@@ -21,7 +21,7 @@
 
     <groupId>io.seata</groupId>
     <artifactId>seata-all</artifactId>
-    <version>1.3.0.jsti</version>
+    <version>1.4.0.jsti</version>
 
     <name>Seata All-in-one ${project.version}</name>
     <url>http://seata.io</url>
@@ -812,23 +812,16 @@
                     </plugin>
                 </plugins>
             </build>
-<!--            <distributionManagement>-->
-<!--                <snapshotRepository>-->
-<!--                    <id>oss_seata</id>-->
-<!--                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>-->
-<!--                </snapshotRepository>-->
-<!--                <repository>-->
-<!--                    <id>oss_seata</id>-->
-<!--                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>-->
-<!--                </repository>-->
-<!--            </distributionManagement>-->
+            <distributionManagement>
+                <snapshotRepository>
+                    <id>oss_seata</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                </snapshotRepository>
+                <repository>
+                    <id>oss_seata</id>
+                    <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+                </repository>
+            </distributionManagement>
         </profile>
     </profiles>
-    <distributionManagement>
-        <repository>
-            <id>thirdparty</id>
-            <url>http://192.168.85.52:8081/content/repositories/thirdparty</url>
-        </repository>
-    </distributionManagement>
-
 </project>

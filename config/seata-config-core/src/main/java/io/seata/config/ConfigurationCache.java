@@ -15,6 +15,7 @@
  */
 package io.seata.config;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -34,8 +35,7 @@ public class ConfigurationCache implements ConfigurationChangeListener {
 
     private static final ConcurrentHashMap<String, Object> CONFIG_CACHE = new ConcurrentHashMap<>();
 
-    private Map<String, HashSet<ConfigurationChangeListener>> configListenersMap =
-        new HashMap<>();
+    private Map<String, HashSet<ConfigurationChangeListener>> configListenersMap = new HashMap<>();
 
     public static void addConfigListener(String dataId, ConfigurationChangeListener... listeners) {
         if (StringUtils.isBlank(dataId)) {
@@ -43,7 +43,7 @@ public class ConfigurationCache implements ConfigurationChangeListener {
         }
         synchronized (ConfigurationCache.class) {
             HashSet<ConfigurationChangeListener> listenerHashSet =
-                getInstance().configListenersMap.computeIfAbsent(dataId, k -> new HashSet<>());
+                getInstance().configListenersMap.computeIfAbsent(dataId, key -> new HashSet<>());
             if (!listenerHashSet.contains(getInstance())) {
                 ConfigurationFactory.getInstance().addConfigListener(dataId, getInstance());
                 listenerHashSet.add(getInstance());
@@ -101,4 +101,43 @@ public class ConfigurationCache implements ConfigurationChangeListener {
         private static final ConfigurationCache INSTANCE = new ConfigurationCache();
     }
 
+    public void clear() {
+        CONFIG_CACHE.clear();
+    }
+
+    private Object  convert(Object result, Method method){
+        if (null != result){
+            String s;
+            try{
+                s = String.valueOf(result);
+            }catch (Exception e){
+                return result;
+            }
+
+            Class<?> returnType = method.getReturnType();
+            if (returnType.equals(boolean.class) || returnType.equals(Boolean.class)) {
+                return Boolean.valueOf(s);
+            }
+            if (returnType.equals(int.class) || returnType.equals(Integer.class)) {
+                return Integer.valueOf(s);
+            }
+            if (returnType.equals(long.class) || returnType.equals(Long.class)) {
+                return Long.valueOf(s);
+            }
+            if (returnType.equals(double.class) || returnType.equals(Double.class)) {
+                return Double.valueOf(s);
+            }
+            if (returnType.equals(byte.class) || returnType.equals(Byte.class)) {
+                return Byte.valueOf(s);
+            }
+            if (returnType.equals(float.class) || returnType.equals(Float.class)) {
+                return Float.valueOf(s);
+            }
+            if (returnType.equals(String.class)) {
+                return s;
+            }
+            return result;
+        }
+        return result;
+    }
 }

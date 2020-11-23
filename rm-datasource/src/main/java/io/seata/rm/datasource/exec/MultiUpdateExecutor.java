@@ -30,7 +30,7 @@ import io.seata.common.util.StringUtils;
 import io.seata.config.Configuration;
 import io.seata.config.ConfigurationFactory;
 import io.seata.core.constants.ConfigurationKeys;
-import io.seata.core.constants.DefaultValues;
+import io.seata.common.DefaultValues;
 import io.seata.rm.datasource.ColumnUtils;
 import io.seata.rm.datasource.SqlGenerateUtils;
 import io.seata.rm.datasource.StatementProxy;
@@ -38,8 +38,6 @@ import io.seata.rm.datasource.sql.struct.TableMeta;
 import io.seata.rm.datasource.sql.struct.TableRecords;
 import io.seata.sqlparser.SQLRecognizer;
 import io.seata.sqlparser.SQLUpdateRecognizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The type MultiSql executor.
@@ -49,7 +47,6 @@ import org.slf4j.LoggerFactory;
  * @author wangwei-ying
  */
 public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecutor<T, S> {
-    private static final Logger log = LoggerFactory.getLogger(MultiUpdateExecutor.class);
 
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
@@ -83,6 +80,7 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
             sqlRecognizer = recognizer;
             SQLUpdateRecognizer sqlUpdateRecognizer = (SQLUpdateRecognizer) recognizer;
             List<String> updateColumns = sqlUpdateRecognizer.getUpdateColumns();
+            assertContainsPKColumnName(updateColumns);
             updateColumnsSet.addAll(updateColumns);
             if (noWhereCondition) {
                 continue;
@@ -133,10 +131,9 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
         }
         TableMeta tmeta = getTableMeta(sqlRecognizers.get(0).getTableName());
         String selectSQL = buildAfterImageSQL(tmeta, beforeImage);
-        log.info("after image sql: {}", selectSQL);
         ResultSet rs = null;
         try (PreparedStatement pst = statementProxy.getConnection().prepareStatement(selectSQL);) {
-            SqlGenerateUtils.setParamForPk(beforeImage.pkRows(),getTableMeta().getPrimaryKeyOnlyName(),pst);
+            SqlGenerateUtils.setParamForPk(beforeImage.pkRows(), getTableMeta().getPrimaryKeyOnlyName(), pst);
             rs = pst.executeQuery();
             return TableRecords.buildRecords(tmeta, rs);
         } finally {
@@ -153,7 +150,7 @@ public class MultiUpdateExecutor<T, S extends Statement> extends AbstractDMLBase
             updateColumnsSet.addAll(sqlUpdateRecognizer.getUpdateColumns());
         }
         StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
-        String suffix = " FROM " + getFromTableInSQL() + " WHERE " + SqlGenerateUtils.buildWhereConditionByPKs(tableMeta.getPrimaryKeyOnlyName(),beforeImage.pkRows().size(),getDbType());
+        String suffix = " FROM " + getFromTableInSQL() + " WHERE " + SqlGenerateUtils.buildWhereConditionByPKs(tableMeta.getPrimaryKeyOnlyName(), beforeImage.pkRows().size(), getDbType());
         StringJoiner selectSQLJoiner = new StringJoiner(", ", prefix.toString(), suffix);
         if (ONLY_CARE_UPDATE_COLUMNS) {
             if (!containsPK(new ArrayList<>(updateColumnsSet))) {

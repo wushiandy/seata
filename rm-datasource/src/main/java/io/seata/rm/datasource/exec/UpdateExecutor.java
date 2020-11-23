@@ -15,22 +15,6 @@
  */
 package io.seata.rm.datasource.exec;
 
-import io.seata.common.util.IOUtil;
-import io.seata.config.Configuration;
-import io.seata.config.ConfigurationFactory;
-import io.seata.core.constants.ConfigurationKeys;
-import io.seata.core.constants.DefaultValues;
-import io.seata.rm.datasource.ColumnUtils;
-import io.seata.rm.datasource.SqlGenerateUtils;
-import io.seata.rm.datasource.StatementProxy;
-import io.seata.rm.datasource.sql.struct.TableMeta;
-import io.seata.rm.datasource.sql.struct.TableRecords;
-import io.seata.sqlparser.SQLRecognizer;
-import io.seata.sqlparser.SQLUpdateRecognizer;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -38,6 +22,21 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
+
+import io.seata.common.util.IOUtil;
+import io.seata.common.util.StringUtils;
+import io.seata.config.Configuration;
+import io.seata.config.ConfigurationFactory;
+import io.seata.core.constants.ConfigurationKeys;
+import io.seata.common.DefaultValues;
+import io.seata.rm.datasource.ColumnUtils;
+import io.seata.rm.datasource.SqlGenerateUtils;
+import io.seata.rm.datasource.StatementProxy;
+import io.seata.rm.datasource.sql.struct.TableMeta;
+import io.seata.rm.datasource.sql.struct.TableRecords;
+import io.seata.sqlparser.ParametersHolder;
+import io.seata.sqlparser.SQLRecognizer;
+import io.seata.sqlparser.SQLUpdateRecognizer;
 
 /**
  * The type Update executor.
@@ -47,7 +46,7 @@ import java.util.StringJoiner;
  * @author sharajava
  */
 public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecutor<T, S> {
-    private static final Logger log = LoggerFactory.getLogger(UpdateExecutor.class);
+
     private static final Configuration CONFIG = ConfigurationFactory.getInstance();
 
     private static final boolean ONLY_CARE_UPDATE_COLUMNS = CONFIG.getBoolean(
@@ -70,22 +69,31 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
         ArrayList<List<Object>> paramAppenderList = new ArrayList<>();
         TableMeta tmeta = getTableMeta();
         String selectSQL = buildBeforeImageSQL(tmeta, paramAppenderList);
-        log.info("before image sql: {}",selectSQL);
         return buildTableRecords(tmeta, selectSQL, paramAppenderList);
     }
 
     private String buildBeforeImageSQL(TableMeta tableMeta, ArrayList<List<Object>> paramAppenderList) {
         SQLUpdateRecognizer recognizer = (SQLUpdateRecognizer) sqlRecognizer;
+        List<String> updateColumns = recognizer.getUpdateColumns();
+        assertContainsPKColumnName(updateColumns);
         StringBuilder prefix = new StringBuilder("/*#mycat:db_type=master*/ SELECT ");
         StringBuilder suffix = new StringBuilder(" FROM ").append(getFromTableInSQL());
         String whereCondition = buildWhereCondition(recognizer, paramAppenderList);
         if (StringUtils.isNotBlank(whereCondition)) {
-            suffix.append(" WHERE ").append(whereCondition);
+            suffix.append(WHERE).append(whereCondition);
+        }
+        String orderBy = recognizer.getOrderBy();
+        if (StringUtils.isNotBlank(orderBy)) {
+            suffix.append(orderBy);
+        }
+        ParametersHolder parametersHolder = statementProxy instanceof ParametersHolder ? (ParametersHolder)statementProxy : null;
+        String limit = recognizer.getLimit(parametersHolder, paramAppenderList);
+        if (StringUtils.isNotBlank(limit)) {
+            suffix.append(limit);
         }
         suffix.append(" FOR UPDATE");
         StringJoiner selectSQLJoin = new StringJoiner(", ", prefix.toString(), suffix.toString());
         if (ONLY_CARE_UPDATE_COLUMNS) {
-            List<String> updateColumns = recognizer.getUpdateColumns();
             if (!containsPK(updateColumns)) {
                 selectSQLJoin.add(getColumnNamesInSQL(tableMeta.getEscapePkNameList(getDbType())));
             }
@@ -107,7 +115,6 @@ public class UpdateExecutor<T, S extends Statement> extends AbstractDMLBaseExecu
             return TableRecords.empty(getTableMeta());
         }
         String selectSQL = buildAfterImageSQL(tmeta, beforeImage);
-        log.info("after image sql: {}", selectSQL);
         ResultSet rs = null;
         try (PreparedStatement pst = statementProxy.getConnection().prepareStatement(selectSQL)) {
             SqlGenerateUtils.setParamForPk(beforeImage.pkRows(), getTableMeta().getPrimaryKeyOnlyName(), pst);
